@@ -1,0 +1,1030 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Live Message & Photo Pinboard</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0f9ff',
+              100: '#e0f2fe',
+              500: '#0284c7',
+              600: '#0284c7',
+              700: '#0369a1',
+            },
+            pin: {
+              yellow: '#fef08a',
+              green: '#bbf7d0',
+              blue: '#bae6fd',
+              pink: '#fbcfe8',
+              purple: '#e9d5ff',
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            handwriting: ['Caveat', 'cursive', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Google Fonts & FontAwesome Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+
+  <style>
+    /* Custom scrollbar styling */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(156, 163, 175, 0.4);
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(156, 163, 175, 0.7);
+    }
+
+    /* Board cork background texture effect */
+    .bg-board-pattern {
+      background-color: #f8fafc;
+      background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
+      background-size: 24px 24px;
+    }
+    .dark .bg-board-pattern {
+      background-color: #0f172a;
+      background-image: radial-gradient(#334155 1px, transparent 1px);
+      background-size: 24px 24px;
+    }
+
+    /* Card hover rotations */
+    .pin-card {
+      transition: transform 0.25s ease, box-shadow 0.25s ease;
+    }
+    .pin-card:hover {
+      transform: translateY(-4px) scale(1.01);
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Handwriting font class */
+    .font-handwriting {
+      font-family: 'Caveat', cursive, sans-serif;
+    }
+  </style>
+</head>
+
+<body class="bg-board-pattern text-slate-800 dark:text-slate-100 min-h-full flex flex-col font-sans transition-colors duration-200">
+
+  <!-- Top Navigation Header -->
+  <header class="sticky top-0 z-30 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-4 py-3">
+    <div class="max-w-7xl mx-auto flex items-center justify-between gap-4">
+      
+      <!-- Brand Logo -->
+      <div class="flex items-center gap-2.5 cursor-pointer" onclick="window.scrollTo({top: 0, behavior: 'smooth'})">
+        <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-500 to-rose-500 flex items-center justify-center text-white shadow-md shadow-amber-500/20">
+          <i class="fa-solid fa-thumbtack text-lg -rotate-45"></i>
+        </div>
+        <div>
+          <h1 class="font-bold text-lg leading-none tracking-tight bg-gradient-to-r from-amber-600 to-rose-600 dark:from-amber-400 dark:to-rose-400 bg-clip-text text-transparent">
+            Pinboard
+          </h1>
+          <p class="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Live Messages & Photos</p>
+        </div>
+      </div>
+
+      <!-- Search Bar -->
+      <div class="hidden sm:flex flex-1 max-w-md relative">
+        <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-xs text-slate-400"></i>
+        <input type="text" id="search-input" placeholder="Search notes, tags, or names..." class="w-full pl-9 pr-4 py-1.5 text-xs rounded-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500/50 transition">
+      </div>
+
+      <!-- Header Action Controls -->
+      <div class="flex items-center gap-2">
+        <!-- New Pin Button -->
+        <button id="open-add-modal-btn" class="px-3.5 py-1.5 rounded-full bg-gradient-to-r from-amber-500 to-rose-500 hover:from-amber-600 hover:to-rose-600 text-white text-xs font-semibold shadow-md shadow-amber-500/20 transition flex items-center gap-1.5">
+          <i class="fa-solid fa-plus text-xs"></i>
+          <span class="hidden xs:inline">New Pin</span>
+        </button>
+
+        <!-- Dark Mode Toggle -->
+        <button id="theme-toggle-btn" class="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+          <i class="fa-solid fa-moon dark:hidden text-xs"></i>
+          <i class="fa-solid fa-sun hidden dark:block text-xs text-amber-400"></i>
+        </button>
+
+        <!-- User Profile / Auth State Button -->
+        <div id="user-menu-container" class="relative">
+          <button id="auth-profile-trigger" class="flex items-center gap-2 p-1 pl-2 rounded-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 transition">
+            <span id="header-user-name" class="text-xs font-medium max-w-[90px] truncate text-slate-700 dark:text-slate-200">Guest</span>
+            <img id="header-user-avatar" src="https://api.dicebear.com/7.x/bottts/svg?seed=Guest" alt="User Avatar" class="w-7 h-7 rounded-full object-cover border border-amber-500/50 bg-amber-100 dark:bg-slate-700" />
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Filter Toolbar -->
+  <section class="max-w-7xl mx-auto px-4 pt-4 pb-2 w-full flex flex-wrap items-center justify-between gap-3 text-xs">
+    
+    <!-- Filter Category Tabs -->
+    <div class="flex items-center gap-1 bg-white/70 dark:bg-slate-800/70 p-1 rounded-2xl border border-slate-200 dark:border-slate-700/60 shadow-sm backdrop-blur-sm">
+      <button data-filter="all" class="filter-tab-btn active px-3 py-1 rounded-xl font-medium transition bg-amber-500 text-white shadow-xs">All</button>
+      <button data-filter="photo" class="filter-tab-btn px-3 py-1 rounded-xl font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition">Photos</button>
+      <button data-filter="note" class="filter-tab-btn px-3 py-1 rounded-xl font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition">Notes</button>
+      <button data-filter="starred" class="filter-tab-btn px-3 py-1 rounded-xl font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition flex items-center gap-1">
+        <i class="fa-solid fa-star text-amber-400"></i> Starred
+      </button>
+    </div>
+
+    <!-- Color Palette Filter -->
+    <div class="flex items-center gap-1.5 overflow-x-auto py-1">
+      <span class="text-[11px] text-slate-400 font-medium mr-1 hidden sm:inline">Color:</span>
+      <button data-color-filter="all" class="color-filter-btn border-2 border-amber-500 w-5 h-5 rounded-full bg-slate-300 dark:bg-slate-600 flex items-center justify-center text-[8px] text-white" title="All colors"><i class="fa-solid fa-check"></i></button>
+      <button data-color-filter="yellow" class="color-filter-btn w-5 h-5 rounded-full bg-amber-200 hover:scale-110 transition" title="Yellow"></button>
+      <button data-color-filter="green" class="color-filter-btn w-5 h-5 rounded-full bg-emerald-200 hover:scale-110 transition" title="Green"></button>
+      <button data-color-filter="blue" class="color-filter-btn w-5 h-5 rounded-full bg-sky-200 hover:scale-110 transition" title="Blue"></button>
+      <button data-color-filter="pink" class="color-filter-btn w-5 h-5 rounded-full bg-pink-200 hover:scale-110 transition" title="Pink"></button>
+      <button data-color-filter="purple" class="color-filter-btn w-5 h-5 rounded-full bg-purple-200 hover:scale-110 transition" title="Purple"></button>
+    </div>
+  </section>
+
+  <!-- Mobile Search Input -->
+  <div class="px-4 pb-2 sm:hidden">
+    <div class="relative w-full">
+      <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-xs text-slate-400"></i>
+      <input type="text" id="mobile-search-input" placeholder="Search notes..." class="w-full pl-9 pr-4 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 focus:outline-none">
+    </div>
+  </div>
+
+  <!-- Main Board Container -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4">
+    <!-- Grid of Pins -->
+    <div id="pinboard-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 items-start">
+      <!-- Loading Skeleton -->
+      <div class="animate-pulse bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 h-48 flex flex-col justify-between">
+        <div class="h-4 bg-slate-200 dark:bg-slate-700 rounded w-3/4 mb-2"></div>
+        <div class="h-16 bg-slate-100 dark:bg-slate-700/50 rounded w-full"></div>
+        <div class="flex justify-between items-center mt-4">
+          <div class="h-6 w-6 rounded-full bg-slate-200 dark:bg-slate-700"></div>
+          <div class="h-4 w-12 bg-slate-200 dark:bg-slate-700 rounded"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Empty State View -->
+    <div id="empty-state" class="hidden flex-col items-center justify-center py-20 text-center">
+      <div class="w-16 h-16 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-500 flex items-center justify-center mb-4 text-2xl">
+        <i class="fa-solid fa-map-pin"></i>
+      </div>
+      <h3 class="text-base font-semibold text-slate-700 dark:text-slate-200">No pins found</h3>
+      <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-xs">Be the first to pin a message or photo to this digital board!</p>
+      <button id="empty-add-btn" class="mt-4 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-medium shadow-md transition">
+        Create a Pin
+      </button>
+    </div>
+  </main>
+
+  <!-- ADD PIN MODAL -->
+  <div id="add-post-modal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl max-w-md w-full p-6 relative border border-slate-100 dark:border-slate-700 transform transition-all my-8">
+      
+      <!-- Close Modal -->
+      <button id="close-add-modal-btn" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 w-8 h-8 rounded-full flex items-center justify-center">
+        <i class="fa-solid fa-xmark text-base"></i>
+      </button>
+
+      <div class="flex items-center gap-2 mb-4">
+        <span class="w-3 h-3 rounded-full bg-amber-500"></span>
+        <h2 class="text-lg font-bold text-slate-800 dark:text-slate-100">Pin a New Note / Photo</h2>
+      </div>
+
+      <form id="add-post-form" class="space-y-4">
+        
+        <!-- Post Content Textarea -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Message</label>
+          <textarea id="post-content" rows="3" required placeholder="Write your message or caption here..." class="w-full px-3.5 py-2.5 text-sm rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-amber-500 transition resize-none"></textarea>
+        </div>
+
+        <!-- Sticky Note Color Selector -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Sticky Color</label>
+          <div class="flex items-center gap-3">
+            <label class="cursor-pointer">
+              <input type="radio" name="card-color" value="yellow" checked class="peer sr-only" />
+              <span class="w-7 h-7 rounded-full bg-amber-200 block border-2 border-transparent peer-checked:border-amber-600 peer-checked:scale-110 transition shadow-xs"></span>
+            </label>
+            <label class="cursor-pointer">
+              <input type="radio" name="card-color" value="green" class="peer sr-only" />
+              <span class="w-7 h-7 rounded-full bg-emerald-200 block border-2 border-transparent peer-checked:border-emerald-600 peer-checked:scale-110 transition shadow-xs"></span>
+            </label>
+            <label class="cursor-pointer">
+              <input type="radio" name="card-color" value="blue" class="peer sr-only" />
+              <span class="w-7 h-7 rounded-full bg-sky-200 block border-2 border-transparent peer-checked:border-sky-600 peer-checked:scale-110 transition shadow-xs"></span>
+            </label>
+            <label class="cursor-pointer">
+              <input type="radio" name="card-color" value="pink" class="peer sr-only" />
+              <span class="w-7 h-7 rounded-full bg-pink-200 block border-2 border-transparent peer-checked:border-pink-600 peer-checked:scale-110 transition shadow-xs"></span>
+            </label>
+            <label class="cursor-pointer">
+              <input type="radio" name="card-color" value="purple" class="peer sr-only" />
+              <span class="w-7 h-7 rounded-full bg-purple-200 block border-2 border-transparent peer-checked:border-purple-600 peer-checked:scale-110 transition shadow-xs"></span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Photo Attachment Section (File, Camera, or Web URL) -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Add Photo (Optional)</label>
+          
+          <!-- Image Input Type Tabs -->
+          <div class="flex rounded-xl bg-slate-100 dark:bg-slate-900 p-1 mb-2 text-xs">
+            <button type="button" id="photo-tab-file" class="flex-1 py-1.5 font-medium rounded-lg bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 shadow-xs transition flex items-center justify-center gap-1">
+              <i class="fa-solid fa-camera"></i> Device / Camera
+            </button>
+            <button type="button" id="photo-tab-url" class="flex-1 py-1.5 font-medium rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-800 transition flex items-center justify-center gap-1">
+              <i class="fa-solid fa-link"></i> Image Web Link
+            </button>
+          </div>
+
+          <!-- File Upload Input (Handles smartphone camera capture & desktop upload) -->
+          <div id="file-upload-container" class="space-y-2">
+            <label for="post-file-input" class="flex flex-col items-center justify-center p-4 border-2 border-dashed border-slate-200 dark:border-slate-700 hover:border-amber-500 dark:hover:border-amber-500 rounded-2xl bg-slate-50/50 dark:bg-slate-900/50 cursor-pointer transition">
+              <i class="fa-solid fa-cloud-arrow-up text-2xl text-amber-500 mb-1"></i>
+              <span class="text-xs font-medium text-slate-600 dark:text-slate-300">Tap to upload photo or take picture</span>
+              <span class="text-[10px] text-slate-400">Supports JPG, PNG, WEBP (Auto-optimized)</span>
+              <!-- Note capture="environment" enables smartphone camera option -->
+              <input type="file" id="post-file-input" accept="image/*" class="hidden" />
+            </label>
+          </div>
+
+          <!-- URL Input Container -->
+          <div id="url-upload-container" class="hidden">
+            <input type="url" id="post-image-url" placeholder="https://example.com/photo.jpg" class="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+          </div>
+
+          <!-- Image Preview Thumbnail -->
+          <div id="file-preview-container" class="hidden relative mt-2 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 max-h-48 bg-slate-900">
+            <img id="post-preview-img" src="" alt="Preview" class="w-full h-48 object-cover" />
+            <button type="button" id="remove-preview-btn" class="absolute top-2 right-2 bg-slate-900/80 hover:bg-rose-600 text-white rounded-full w-7 h-7 flex items-center justify-center text-xs backdrop-blur-xs transition">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Author Name Field -->
+        <div>
+          <label for="post-author" class="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Your Name / Alias</label>
+          <input type="text" id="post-author" placeholder="Anonymous Friend" maxlength="30" class="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-amber-500 transition" />
+        </div>
+
+        <!-- Form Actions (Cancel & Submit) -->
+        <div class="pt-4 mt-2 border-t border-slate-100 dark:border-slate-700 flex items-center justify-end gap-2">
+          <button type="button" id="cancel-add-modal-btn" class="px-4 py-2 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition">
+            Cancel
+          </button>
+          <button type="submit" id="submit-post-btn" class="px-5 py-2 text-xs font-medium bg-amber-600 hover:bg-amber-700 text-white rounded-xl shadow-md transition flex items-center gap-1.5">
+            <i class="fa-solid fa-paper-plane"></i>
+            <span>Pin to Board</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Auth Modal (Google & Email Sign In) -->
+  <div id="auth-modal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl max-w-sm w-full p-6 relative border border-slate-100 dark:border-slate-700">
+      
+      <button id="close-auth-modal-btn" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 w-8 h-8 rounded-full flex items-center justify-center">
+        <i class="fa-solid fa-xmark text-base"></i>
+      </button>
+
+      <div class="text-center mb-6">
+        <div class="w-12 h-12 rounded-2xl bg-amber-100 dark:bg-amber-900/40 text-amber-500 mx-auto flex items-center justify-center text-xl mb-2">
+          <i class="fa-solid fa-user-lock"></i>
+        </div>
+        <h2 class="text-lg font-bold text-slate-800 dark:text-slate-100">Welcome to Pinboard</h2>
+        <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Sign in to edit profile & manage your pins</p>
+      </div>
+
+      <!-- Google Auth Button -->
+      <button id="google-signin-btn" class="w-full py-2.5 px-4 border border-slate-200 dark:border-slate-700 rounded-2xl bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-medium text-xs flex items-center justify-center gap-2 shadow-xs transition mb-4">
+        <svg class="w-4 h-4" viewBox="0 0 24 24">
+          <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+          <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+          <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+        </svg>
+        <span>Continue with Google</span>
+      </button>
+
+      <div class="relative flex items-center justify-center mb-4">
+        <div class="border-t border-slate-200 dark:border-slate-700 w-full"></div>
+        <span class="bg-white dark:bg-slate-800 px-3 text-[10px] uppercase font-semibold text-slate-400 absolute">or email</span>
+      </div>
+
+      <!-- Email / Password Form -->
+      <form id="email-auth-form" class="space-y-3">
+        <div>
+          <input type="text" id="auth-nickname" maxlength="25" placeholder="Nickname (required for registration)" class="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+        </div>
+        <div>
+          <input type="email" id="auth-email" required placeholder="Email Address" class="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+        </div>
+        <div>
+          <input type="password" id="auth-password" required placeholder="Password" class="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+        </div>
+
+        <div class="flex items-center gap-2 pt-1">
+          <button type="button" id="email-login-btn" class="flex-1 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-semibold shadow-xs transition">
+            Sign In
+          </button>
+          <button type="button" id="email-signup-btn" class="flex-1 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-semibold transition">
+            Register
+          </button>
+        </div>
+      </form>
+
+      <div class="mt-4 text-center">
+        <button id="guest-continue-btn" class="text-[11px] text-slate-400 hover:text-amber-500 underline">
+          Continue as Guest
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PROFILE EDIT MODAL -->
+  <div id="profile-modal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl max-w-sm w-full p-6 relative border border-slate-100 dark:border-slate-700">
+      
+      <button id="close-profile-modal-btn" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 w-8 h-8 rounded-full flex items-center justify-center">
+        <i class="fa-solid fa-xmark text-base"></i>
+      </button>
+
+      <h2 class="text-base font-bold text-slate-800 dark:text-slate-100 mb-4">Edit Profile & Avatar</h2>
+
+      <form id="profile-form" class="space-y-4">
+        
+        <!-- Avatar Preview & Input -->
+        <div class="flex flex-col items-center">
+          <div class="relative group cursor-pointer mb-2">
+            <img id="profile-avatar-preview" src="https://api.dicebear.com/7.x/bottts/svg?seed=Guest" class="w-20 h-20 rounded-full object-cover border-2 border-amber-500 bg-amber-50 dark:bg-slate-900 shadow-md" />
+            <label for="avatar-file-input" class="absolute inset-0 bg-slate-900/40 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition cursor-pointer">
+              <i class="fa-solid fa-camera text-lg"></i>
+            </label>
+            <input type="file" id="avatar-file-input" accept="image/*" class="hidden" />
+          </div>
+          <span class="text-[11px] text-slate-400">Tap avatar to change photo from phone or desktop</span>
+        </div>
+
+        <!-- Avatar Image URL Option -->
+        <div>
+          <label class="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1">Avatar Image URL (Optional)</label>
+          <input type="url" id="profile-avatar-url" placeholder="https://..." class="w-full px-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900" />
+        </div>
+
+        <!-- Nickname Input -->
+        <div>
+          <label class="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1">Display Nickname</label>
+          <input type="text" id="profile-nickname" maxlength="25" required placeholder="Your Alias" class="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 font-semibold" />
+        </div>
+
+        <div class="pt-2 flex items-center gap-2">
+          <button type="button" id="sign-out-btn" class="py-2 px-3 bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 rounded-xl text-xs font-semibold hover:bg-rose-100 transition">
+            Sign Out
+          </button>
+          <div class="flex-1"></div>
+          <button type="button" id="cancel-profile-btn" class="py-2 px-3 text-xs text-slate-500">Cancel</button>
+          <button type="submit" class="py-2 px-4 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-semibold shadow-xs">
+            Save Profile
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- LIGHTBOX MODAL FOR FULL PHOTOS -->
+  <div id="lightbox-modal" class="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md hidden flex flex-col items-center justify-center p-4">
+    <button id="close-lightbox-btn" class="absolute top-4 right-4 text-white/80 hover:text-white w-10 h-10 rounded-full flex items-center justify-center text-xl">
+      <i class="fa-solid fa-xmark"></i>
+    </button>
+    <img id="lightbox-img" src="" class="max-w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl" />
+    <p id="lightbox-caption" class="text-white/80 text-xs mt-3 text-center max-w-md"></p>
+  </div>
+
+  <script src="app.js" defer></script>
+  <!-- Original cloud demo code retained for reference but disabled. -->
+  <script type="text/plain" id="original-cloud-demo">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { 
+      getAuth, 
+      signInWithCustomToken, 
+      signInAnonymously, 
+      GoogleAuthProvider, 
+      signInWithPopup, 
+      signInWithEmailAndPassword, 
+      createUserWithEmailAndPassword, 
+      signOut, 
+      onAuthStateChanged 
+    } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { 
+      getFirestore, 
+      collection, 
+      doc, 
+      addDoc, 
+      setDoc, 
+      getDoc, 
+      updateDoc, 
+      deleteDoc, 
+      onSnapshot 
+    } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'pinboard-app';
+    const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+      apiKey: "demo-key",
+      authDomain: "demo.firebaseapp.com",
+      projectId: "demo-project",
+      storageBucket: "demo.appspot.com",
+    };
+
+    // Firebase Initialization
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    // Global App State
+    let currentUser = null;
+    let userProfile = {
+      nickname: 'Anonymous',
+      avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=Guest'
+    };
+    let allPosts = [];
+    let currentFilter = 'all';
+    let currentColorFilter = 'all';
+    let searchQuery = '';
+    let selectedFileDataUrl = null;
+
+    // DOM Elements Reference
+    const pinboardGrid = document.getElementById('pinboard-grid');
+    const emptyState = document.getElementById('empty-state');
+    const addPostModal = document.getElementById('add-post-modal');
+    const addPostForm = document.getElementById('add-post-form');
+    const authModal = document.getElementById('auth-modal');
+    const profileModal = document.getElementById('profile-modal');
+    const lightboxModal = document.getElementById('lightbox-modal');
+
+    // Attach Photo Preview listeners
+    const postFileInput = document.getElementById('post-file-input');
+    const postImageUrl = document.getElementById('post-image-url');
+    const filePreviewContainer = document.getElementById('file-preview-container');
+    const postPreviewImg = document.getElementById('post-preview-img');
+    const removePreviewBtn = document.getElementById('remove-preview-btn');
+
+    // Photo input tab toggling
+    document.getElementById('photo-tab-file').onclick = () => {
+      document.getElementById('file-upload-container').classList.remove('hidden');
+      document.getElementById('url-upload-container').classList.add('hidden');
+      document.getElementById('photo-tab-file').classList.add('bg-white', 'dark:bg-slate-800', 'text-slate-700', 'dark:text-slate-200');
+      document.getElementById('photo-tab-url').classList.remove('bg-white', 'dark:bg-slate-800', 'text-slate-700', 'dark:text-slate-200');
+    };
+
+    document.getElementById('photo-tab-url').onclick = () => {
+      document.getElementById('file-upload-container').classList.add('hidden');
+      document.getElementById('url-upload-container').classList.remove('hidden');
+      document.getElementById('photo-tab-url').classList.add('bg-white', 'dark:bg-slate-800', 'text-slate-700', 'dark:text-slate-200');
+      document.getElementById('photo-tab-file').classList.remove('bg-white', 'dark:bg-slate-800', 'text-slate-700', 'dark:text-slate-200');
+    };
+
+    // Helper function to compress uploaded image files to lightweight Data URLs
+    function compressImageFile(file, maxWidth = 900, quality = 0.75) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            let width = img.width;
+            let height = img.height;
+
+            if (width > maxWidth) {
+              height = Math.round((height * maxWidth) / width);
+              width = maxWidth;
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+
+            const dataUrl = canvas.toDataURL('image/jpeg', quality);
+            resolve(dataUrl);
+          };
+          img.onerror = reject;
+          img.src = e.target.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    // Handle Image file selection from smart phone camera or desktop
+    postFileInput.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        try {
+          selectedFileDataUrl = await compressImageFile(file);
+          postPreviewImg.src = selectedFileDataUrl;
+          filePreviewContainer.classList.remove('hidden');
+        } catch (err) {
+          showNotification('Error processing image file', 'error');
+        }
+      }
+    });
+
+    // Handle URL image input blur
+    postImageUrl.addEventListener('input', (e) => {
+      const url = e.target.value.trim();
+      if (url.length > 5) {
+        selectedFileDataUrl = url;
+        postPreviewImg.src = url;
+        filePreviewContainer.classList.remove('hidden');
+      }
+    });
+
+    removePreviewBtn.onclick = () => {
+      selectedFileDataUrl = null;
+      postFileInput.value = '';
+      postImageUrl.value = '';
+      filePreviewContainer.classList.add('hidden');
+    };
+
+    // Auth Listener
+    async function initAuth() {
+      try {
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+          await signInWithCustomToken(auth, __initial_auth_token);
+        } else {
+          await signInAnonymously(auth);
+        }
+      } catch (err) {
+        console.log("Auth fallback to anonymous", err);
+      }
+    }
+
+    onAuthStateChanged(auth, async (user) => {
+      currentUser = user;
+      if (user) {
+        // Load User Profile
+        const profileRef = doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'info');
+        try {
+          const snap = await getDoc(profileRef);
+          if (snap.exists()) {
+            userProfile = snap.data();
+          } else {
+            userProfile = {
+              nickname: user.displayName || 'Friend_' + user.uid.substring(0, 4),
+              avatar: user.photoURL || `https://api.dicebear.com/7.x/bottts/svg?seed=${user.uid}`
+            };
+            await setDoc(profileRef, userProfile);
+          }
+        } catch (e) {
+          console.warn("Firestore profile fetch error", e);
+        }
+      } else {
+        userProfile = {
+          nickname: 'Guest',
+          avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=Guest'
+        };
+      }
+      updateUserUI();
+      subscribeToPosts();
+    });
+
+    function updateUserUI() {
+      document.getElementById('header-user-name').textContent = userProfile.nickname;
+      document.getElementById('header-user-avatar').src = userProfile.avatar;
+      document.getElementById('post-author').value = userProfile.nickname;
+      document.getElementById('profile-nickname').value = userProfile.nickname;
+      document.getElementById('profile-avatar-preview').src = userProfile.avatar;
+    }
+
+    // Google Sign In
+    document.getElementById('google-signin-btn').onclick = async () => {
+      const provider = new GoogleAuthProvider();
+      try {
+        await signInWithPopup(auth, provider);
+        authModal.classList.add('hidden');
+        showNotification('Successfully signed in with Google!');
+      } catch (err) {
+        showNotification(err.message, 'error');
+      }
+    };
+
+    // Email Sign In / Register
+    document.getElementById('email-login-btn').onclick = async () => {
+      const email = document.getElementById('auth-email').value;
+      const pass = document.getElementById('auth-password').value;
+      if (!email || !pass) return showNotification('Please fill in email and password', 'error');
+      try {
+        await signInWithEmailAndPassword(auth, email, pass);
+        authModal.classList.add('hidden');
+        showNotification('Signed in successfully!');
+      } catch (err) {
+        showNotification(err.message, 'error');
+      }
+    };
+
+    document.getElementById('email-signup-btn').onclick = async () => {
+      const email = document.getElementById('auth-email').value;
+      const pass = document.getElementById('auth-password').value;
+      if (!email || !pass) return showNotification('Please fill in email and password', 'error');
+      try {
+        await createUserWithEmailAndPassword(auth, email, pass);
+        authModal.classList.add('hidden');
+        showNotification('Account created successfully!');
+      } catch (err) {
+        showNotification(err.message, 'error');
+      }
+    };
+
+    // Sign Out
+    document.getElementById('sign-out-btn').onclick = async () => {
+      await signOut(auth);
+      profileModal.classList.add('hidden');
+      showNotification('Signed out');
+    };
+
+    // Profile Avatar File Upload (Camera / File)
+    document.getElementById('avatar-file-input').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        try {
+          const compressed = await compressImageFile(file, 300, 0.8);
+          document.getElementById('profile-avatar-preview').src = compressed;
+        } catch (err) {
+          showNotification('Failed to process image', 'error');
+        }
+      }
+    });
+
+    // Save Profile
+    document.getElementById('profile-form').onsubmit = async (e) => {
+      e.preventDefault();
+      const nickname = document.getElementById('profile-nickname').value.trim() || 'Anonymous';
+      const customUrl = document.getElementById('profile-avatar-url').value.trim();
+      const previewSrc = document.getElementById('profile-avatar-preview').src;
+
+      userProfile.nickname = nickname;
+      userProfile.avatar = customUrl || previewSrc;
+
+      if (currentUser) {
+        const profileRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'profile', 'info');
+        await setDoc(profileRef, userProfile, { merge: true });
+      }
+
+      updateUserUI();
+      profileModal.classList.add('hidden');
+      showNotification('Profile updated!');
+    };
+
+    // Firestore Collection Subscription
+    function subscribeToPosts() {
+      const postsRef = collection(db, 'artifacts', appId, 'public', 'data', 'pinboard_posts');
+      
+      onSnapshot(postsRef, (snapshot) => {
+        allPosts = [];
+        snapshot.forEach((docSnap) => {
+          allPosts.push({ id: docSnap.id, ...docSnap.data() });
+        });
+        
+        // Sort descending by created date
+        allPosts.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        renderPosts();
+      }, (error) => {
+        console.error("Firestore sync error:", error);
+      });
+    }
+
+    // Create new Post
+    addPostForm.onsubmit = async (e) => {
+      e.preventDefault();
+      
+      const content = document.getElementById('post-content').value.trim();
+      const author = document.getElementById('post-author').value.trim() || 'Anonymous';
+      const color = document.querySelector('input[name="card-color"]:checked')?.value || 'yellow';
+
+      if (!content && !selectedFileDataUrl) {
+        return showNotification('Please enter a message or attach a photo', 'error');
+      }
+
+      const newPost = {
+        content: content,
+        imageUrl: selectedFileDataUrl || null,
+        authorName: author,
+        authorAvatar: userProfile.avatar,
+        authorId: currentUser ? currentUser.uid : 'guest',
+        color: color,
+        likes: 0,
+        likedBy: [],
+        starredBy: [],
+        createdAt: Date.now()
+      };
+
+      try {
+        const postsRef = collection(db, 'artifacts', appId, 'public', 'data', 'pinboard_posts');
+        await addDoc(postsRef, newPost);
+        
+        // Reset form & close
+        resetAddForm();
+        addPostModal.classList.add('hidden');
+        showNotification('Pinned to board!');
+      } catch (err) {
+        showNotification('Error pinning post', 'error');
+      }
+    };
+
+    // Render posts to Pinboard UI
+    function renderPosts() {
+      pinboardGrid.innerHTML = '';
+
+      const filtered = allPosts.filter(post => {
+        // Category filter
+        if (currentFilter === 'photo' && !post.imageUrl) return false;
+        if (currentFilter === 'note' && post.imageUrl) return false;
+        if (currentFilter === 'starred') {
+          const isStarred = post.starredBy && currentUser && post.starredBy.includes(currentUser.uid);
+          if (!isStarred) return false;
+        }
+
+        // Color filter
+        if (currentColorFilter !== 'all' && post.color !== currentColorFilter) return false;
+
+        // Search Query
+        if (searchQuery) {
+          const q = searchQuery.toLowerCase();
+          const matchContent = post.content && post.content.toLowerCase().includes(q);
+          const matchAuthor = post.authorName && post.authorName.toLowerCase().includes(q);
+          if (!matchContent && !matchAuthor) return false;
+        }
+
+        return true;
+      });
+
+      if (filtered.length === 0) {
+        emptyState.classList.remove('hidden');
+        emptyState.classList.add('flex');
+      } else {
+        emptyState.classList.add('hidden');
+        emptyState.classList.remove('flex');
+      }
+
+      const colorClasses = {
+        yellow: 'bg-amber-100/90 dark:bg-amber-900/30 border-amber-200 dark:border-amber-800/50 text-amber-950 dark:text-amber-100',
+        green: 'bg-emerald-100/90 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-800/50 text-emerald-950 dark:text-emerald-100',
+        blue: 'bg-sky-100/90 dark:bg-sky-900/30 border-sky-200 dark:border-sky-800/50 text-sky-950 dark:text-sky-100',
+        pink: 'bg-pink-100/90 dark:bg-pink-900/30 border-pink-200 dark:border-pink-800/50 text-pink-950 dark:text-pink-100',
+        purple: 'bg-purple-100/90 dark:bg-purple-900/30 border-purple-200 dark:border-purple-800/50 text-purple-950 dark:text-purple-100',
+      };
+
+      filtered.forEach(post => {
+        const isLiked = currentUser && post.likedBy && post.likedBy.includes(currentUser.uid);
+        const isStarred = currentUser && post.starredBy && post.starredBy.includes(currentUser.uid);
+        const isOwner = currentUser && post.authorId === currentUser.uid;
+
+        const card = document.createElement('div');
+        card.className = `pin-card relative rounded-3xl p-4 border shadow-sm backdrop-blur-xs flex flex-col justify-between space-y-3 ${colorClasses[post.color] || colorClasses.yellow}`;
+        
+        // Pin header icon
+        const pinHeader = `
+          <div class="flex items-start justify-between gap-2">
+            <div class="flex items-center gap-2">
+              <img src="${post.authorAvatar || 'https://api.dicebear.com/7.x/bottts/svg?seed=Anon'}" class="w-7 h-7 rounded-full object-cover border border-white/50 shadow-xs" />
+              <div>
+                <h4 class="text-xs font-bold leading-none">${escapeHtml(post.authorName || 'Anonymous')}</h4>
+                <span class="text-[9px] opacity-60">${formatTime(post.createdAt)}</span>
+              </div>
+            </div>
+            <div class="flex items-center gap-1">
+              <button onclick="toggleStar('${post.id}')" class="text-xs p-1 hover:scale-125 transition ${isStarred ? 'text-amber-500' : 'opacity-40 hover:opacity-100'}">
+                <i class="${isStarred ? 'fa-solid' : 'fa-regular'} fa-star"></i>
+              </button>
+              ${isOwner ? `
+                <button onclick="deletePost('${post.id}')" class="text-xs p-1 opacity-40 hover:opacity-100 hover:text-rose-600 transition">
+                  <i class="fa-solid fa-trash-can"></i>
+                </button>
+              ` : ''}
+            </div>
+          </div>
+        `;
+
+        // Image template if photo attached
+        const imageMarkup = post.imageUrl ? `
+          <div class="rounded-2xl overflow-hidden border border-black/5 bg-black/5 cursor-pointer max-h-56 relative group" onclick="openLightbox('${escapeHtml(post.imageUrl)}', '${escapeHtml(post.content || '')}')">
+            <img src="${escapeHtml(post.imageUrl)}" class="w-full h-44 object-cover group-hover:scale-105 transition duration-300" />
+            <div class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-xs font-medium">
+              <i class="fa-solid fa-expand mr-1"></i> View Full
+            </div>
+          </div>
+        ` : '';
+
+        // Content Text
+        const contentMarkup = post.content ? `
+          <p class="text-xs sm:text-sm leading-relaxed whitespace-pre-line font-medium">${escapeHtml(post.content)}</p>
+        ` : '';
+
+        // Footer Actions (Like button & copy text)
+        const footerMarkup = `
+          <div class="flex items-center justify-between pt-2 border-t border-black/5 dark:border-white/5 text-xs">
+            <button onclick="toggleLike('${post.id}')" class="flex items-center gap-1.5 px-2 py-1 rounded-xl bg-white/40 dark:bg-black/20 hover:bg-white/70 transition">
+              <i class="${isLiked ? 'fa-solid text-rose-500' : 'fa-regular'} fa-heart text-xs"></i>
+              <span class="text-[11px] font-semibold">${post.likes || 0}</span>
+            </button>
+            <button onclick="copyToClipboard('${escapeHtml(post.content || '')}')" title="Copy text" class="p-1 opacity-50 hover:opacity-100 transition">
+              <i class="fa-regular fa-copy"></i>
+            </button>
+          </div>
+        `;
+
+        card.innerHTML = pinHeader + imageMarkup + contentMarkup + footerMarkup;
+        pinboardGrid.appendChild(card);
+      });
+    }
+
+    window.toggleLike = async (postId) => {
+      if (!currentUser) return authModal.classList.remove('hidden');
+      const post = allPosts.find(p => p.id === postId);
+      if (!post) return;
+
+      const likedBy = post.likedBy || [];
+      const hasLiked = likedBy.includes(currentUser.uid);
+      
+      const newLikedBy = hasLiked ? likedBy.filter(id => id !== currentUser.uid) : [...likedBy, currentUser.uid];
+      const newLikes = newLikedBy.length;
+
+      const postRef = doc(db, 'artifacts', appId, 'public', 'data', 'pinboard_posts', postId);
+      await updateDoc(postRef, { likedBy: newLikedBy, likes: newLikes });
+    };
+
+    window.toggleStar = async (postId) => {
+      if (!currentUser) return authModal.classList.remove('hidden');
+      const post = allPosts.find(p => p.id === postId);
+      if (!post) return;
+
+      const starredBy = post.starredBy || [];
+      const hasStarred = starredBy.includes(currentUser.uid);
+      
+      const newStarredBy = hasStarred ? starredBy.filter(id => id !== currentUser.uid) : [...starredBy, currentUser.uid];
+
+      const postRef = doc(db, 'artifacts', appId, 'public', 'data', 'pinboard_posts', postId);
+      await updateDoc(postRef, { starredBy: newStarredBy });
+    };
+
+    window.deletePost = async (postId) => {
+      if (confirm('Are you sure you want to remove this pin?')) {
+        const postRef = doc(db, 'artifacts', appId, 'public', 'data', 'pinboard_posts', postId);
+        await deleteDoc(postRef);
+        showNotification('Pin removed');
+      }
+    };
+
+    window.openLightbox = (url, caption) => {
+      document.getElementById('lightbox-img').src = url;
+      document.getElementById('lightbox-caption').textContent = caption;
+      lightboxModal.classList.remove('hidden');
+    };
+
+    document.getElementById('close-lightbox-btn').onclick = () => lightboxModal.classList.add('hidden');
+
+    window.copyToClipboard = (text) => {
+      if (!text) return;
+      const dummy = document.createElement('textarea');
+      document.body.appendChild(dummy);
+      dummy.value = text;
+      dummy.select();
+      document.execCommand('copy');
+      document.body.removeChild(dummy);
+      showNotification('Copied to clipboard!');
+    };
+
+    // Filter Tab click event listeners
+    document.querySelectorAll('.filter-tab-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        document.querySelectorAll('.filter-tab-btn').forEach(b => {
+          b.classList.remove('bg-amber-500', 'text-white', 'shadow-xs');
+          b.classList.add('text-slate-600', 'dark:text-slate-300');
+        });
+        btn.classList.add('bg-amber-500', 'text-white', 'shadow-xs');
+        btn.classList.remove('text-slate-600', 'dark:text-slate-300');
+        currentFilter = btn.dataset.filter;
+        renderPosts();
+      });
+    });
+
+    // Color filter listeners
+    document.querySelectorAll('.color-filter-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.color-filter-btn').forEach(b => b.classList.remove('border-2', 'border-amber-500'));
+        btn.classList.add('border-2', 'border-amber-500');
+        currentColorFilter = btn.dataset.colorFilter;
+        renderPosts();
+      });
+    });
+
+    // Search Input listeners
+    const handleSearch = (e) => {
+      searchQuery = e.target.value;
+      renderPosts();
+    };
+    document.getElementById('search-input').addEventListener('input', handleSearch);
+    document.getElementById('mobile-search-input').addEventListener('input', handleSearch);
+
+    // Modal Triggers
+    document.getElementById('open-add-modal-btn').onclick = () => addPostModal.classList.remove('hidden');
+    document.getElementById('empty-add-btn').onclick = () => addPostModal.classList.remove('hidden');
+    document.getElementById('close-add-modal-btn').onclick = () => addPostModal.classList.add('hidden');
+    document.getElementById('cancel-add-modal-btn').onclick = () => addPostModal.classList.add('hidden');
+
+    document.getElementById('auth-profile-trigger').onclick = () => {
+      if (currentUser && !currentUser.isAnonymous) {
+        profileModal.classList.remove('hidden');
+      } else {
+        authModal.classList.remove('hidden');
+      }
+    };
+
+    document.getElementById('close-auth-modal-btn').onclick = () => authModal.classList.add('hidden');
+    document.getElementById('guest-continue-btn').onclick = () => authModal.classList.add('hidden');
+
+    document.getElementById('close-profile-modal-btn').onclick = () => profileModal.classList.add('hidden');
+    document.getElementById('cancel-profile-btn').onclick = () => profileModal.classList.add('hidden');
+
+    function resetAddForm() {
+      addPostForm.reset();
+      selectedFileDataUrl = null;
+      filePreviewContainer.classList.add('hidden');
+      postFileInput.value = '';
+      postImageUrl.value = '';
+    }
+
+    // Dark mode toggle logic
+    const themeToggleBtn = document.getElementById('theme-toggle-btn');
+    themeToggleBtn.onclick = () => {
+      document.documentElement.classList.toggle('dark');
+    };
+
+    // Helper utilities
+    function escapeHtml(str) {
+      return (str || '').replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    }
+
+    function formatTime(timestamp) {
+      if (!timestamp) return 'Just now';
+      const diff = Math.floor((Date.now() - timestamp) / 1000);
+      if (diff < 60) return 'Just now';
+      if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+      if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+      return `${Math.floor(diff / 86400)}d ago`;
+    }
+
+    function showNotification(msg, type = 'info') {
+      const toast = document.createElement('div');
+      toast.className = `fixed bottom-5 right-5 z-50 px-4 py-2.5 rounded-2xl shadow-xl text-xs font-semibold text-white flex items-center gap-2 transform transition-all duration-300 translate-y-10 opacity-0 ${
+        type === 'error' ? 'bg-rose-600' : 'bg-slate-900 dark:bg-amber-600'
+      }`;
+      toast.innerHTML = `<i class="fa-solid ${type === 'error' ? 'fa-circle-exclamation' : 'fa-circle-check'}"></i> ${escapeHtml(msg)}`;
+      document.body.appendChild(toast);
+
+      setTimeout(() => {
+        toast.classList.remove('translate-y-10', 'opacity-0');
+      }, 10);
+
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-10');
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    }
+
+    // Startup Init
+    window.onload = () => {
+      initAuth();
+    };
+  </script>
+</body>
+</html>
