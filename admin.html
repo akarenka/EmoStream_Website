@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Pinboard Admin</title>
+  <style>
+    :root{font-family:Inter,system-ui,sans-serif;color:#172033;background:#f3f5f8}*{box-sizing:border-box}body{margin:0}button,input{font:inherit}button{cursor:pointer}.top{background:#111827;color:white;padding:18px 24px;display:flex;justify-content:space-between;align-items:center;gap:16px}.top h1{margin:0;font-size:20px}.wrap{max-width:1200px;margin:auto;padding:24px}.card{background:white;border:1px solid #dce2ea;border-radius:18px;padding:20px;box-shadow:0 8px 30px #17203310;margin-bottom:18px}.login{max-width:430px;margin:8vh auto}.field{display:grid;gap:6px;margin:12px 0}input{width:100%;padding:11px 13px;border:1px solid #cbd5e1;border-radius:10px}.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.btn{border:0;border-radius:10px;padding:10px 14px;font-weight:700;background:#f59e0b;color:white}.btn.alt{background:#334155}.btn.red{background:#dc2626}.btn.green{background:#059669}.btn.light{background:#e8edf4;color:#263244}.notice{padding:10px 12px;border-radius:10px;background:#fff7db;color:#7c4b00;margin:12px 0;font-size:14px}.error{background:#fee2e2;color:#991b1b}.hidden{display:none!important}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.stat{background:#fff;border:1px solid #dde3eb;border-radius:15px;padding:16px}.stat b{display:block;font-size:25px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}.user,.post{border:1px solid #dce2ea;border-radius:14px;padding:14px;background:#fff}.avatar{width:44px;height:44px;border-radius:50%;object-fit:cover;background:#fde68a}.meta{font-size:12px;color:#64748b;word-break:break-all}.badge{display:inline-block;padding:3px 8px;border-radius:99px;background:#e2e8f0;font-size:11px}.badge.off{background:#fee2e2;color:#991b1b}.post img{width:100%;height:130px;object-fit:cover;border-radius:10px;margin-top:8px}.post p{white-space:pre-wrap}.section-title{display:flex;justify-content:space-between;align-items:center;gap:10px}#toast{position:fixed;right:18px;bottom:18px;max-width:360px;background:#111827;color:white;padding:12px 16px;border-radius:12px;box-shadow:0 10px 35px #0004}@media(max-width:650px){.stats{grid-template-columns:1fr}.wrap{padding:14px}.top{padding:14px}}
+  </style>
+</head>
+<body>
+  <header class="top"><h1>🛡️ Pinboard Admin</h1><div class="row"><span id="manager-label">Manager</span><button id="logout" class="btn light hidden">Sign out</button></div></header>
+  <main class="wrap">
+    <section id="login-card" class="card login">
+      <h2>Administrator sign in</h2>
+      <p class="notice">Access is restricted to <b>hayashirika05@gmail.com</b>.</p>
+      <div class="field"><label>Email</label><input id="email" type="email" value="hayashirika05@gmail.com" autocomplete="username"></div>
+      <div class="field"><label>Password</label><input id="password" type="password" autocomplete="current-password"></div>
+      <div class="row"><button id="email-login" class="btn">Sign in</button><button id="google-login" class="btn alt">Continue with Google</button></div>
+      <p id="login-error" class="notice error hidden"></p>
+    </section>
+
+    <section id="dashboard" class="hidden">
+      <div class="card"><div class="section-title"><div><h2>Manager settings</h2><p class="meta">Signed in as <span id="admin-email"></span></p></div></div><div class="row"><input id="manager-name" maxlength="40" placeholder="Manager name" style="max-width:320px"><button id="save-manager" class="btn">Save Manager Name</button></div></div>
+      <div class="stats"><div class="stat"><span>Profiles</span><b id="profile-count">0</b></div><div class="stat"><span>Posts</span><b id="post-count">0</b></div><div class="stat"><span>Disabled</span><b id="disabled-count">0</b></div></div>
+      <section class="card"><div class="section-title"><h2>Accounts and names</h2><button id="refresh" class="btn light">Refresh</button></div><div id="users" class="grid"></div></section>
+      <section class="card"><div class="section-title"><h2>All posts</h2><span class="meta">Delete posts individually</span></div><div id="posts" class="grid"></div></section>
+    </section>
+  </main>
+  <div id="toast" class="hidden"></div>
+
+  <script type="module">
+    import {initializeApp} from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
+    import {getAuth,GoogleAuthProvider,signInWithPopup,signInWithEmailAndPassword,signOut,onAuthStateChanged} from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
+    import {getFirestore,collection,doc,getDoc,setDoc,deleteDoc,getDocs,onSnapshot,query,where,writeBatch} from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
+    const ADMIN='hayashirika05@gmail.com';
+    const appId='pinboard-app';
+    const app=initializeApp({apiKey:'AIzaSyDSVT1my-e0x-WKLKAiPq1WPz_q4PvMVOE',authDomain:'emostreamwebsite.firebaseapp.com',projectId:'emostreamwebsite',storageBucket:'emostreamwebsite.firebasestorage.app',messagingSenderId:'816296282273',appId:'1:816296282273:web:f52a93862a5b681cb988e0',measurementId:'G-NN77T83MZS'});
+    const auth=getAuth(app),db=getFirestore(app),$=id=>document.getElementById(id);
+    const postsCol=collection(db,'artifacts',appId,'public','data','pinboard_posts');
+    const profilesCol=collection(db,'artifacts',appId,'admin_profiles');
+    const moderationCol=collection(db,'artifacts',appId,'moderation');
+    let profiles=[],posts=[],disabled=new Map(),unsubs=[];
+    const esc=s=>String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+    const safeImage=s=>/^(https?:\/\/|data:image\/)/i.test(String(s||''))?s:'';
+    function toast(message,error=false){$('toast').textContent=message;$('toast').style.background=error?'#b91c1c':'#111827';$('toast').classList.remove('hidden');setTimeout(()=>$('toast').classList.add('hidden'),3200)}
+    function loginError(message){$('login-error').textContent=message;$('login-error').classList.remove('hidden')}
+    async function verify(user){if(!user||String(user.email||'').toLowerCase()!==ADMIN){if(user)await signOut(auth);loginError('Access denied. This account is not an administrator.');return false}return true}
+    $('email-login').onclick=async()=>{try{await signInWithEmailAndPassword(auth,$('email').value.trim(),$('password').value)}catch(e){loginError(e.message)}};
+    $('google-login').onclick=async()=>{try{await signInWithPopup(auth,new GoogleAuthProvider())}catch(e){loginError(e.message)}};
+    $('logout').onclick=()=>signOut(auth);
+    onAuthStateChanged(auth,async user=>{
+      unsubs.forEach(fn=>fn());unsubs=[];
+      if(!await verify(user)){$('login-card').classList.remove('hidden');$('dashboard').classList.add('hidden');$('logout').classList.add('hidden');return}
+      $('login-card').classList.add('hidden');$('dashboard').classList.remove('hidden');$('logout').classList.remove('hidden');$('admin-email').textContent=user.email;
+      const config=await getDoc(doc(db,'artifacts',appId,'admin_config','settings'));
+      if(config.exists()){$('manager-name').value=config.data().managerName||'';$('manager-label').textContent=config.data().managerName||'Manager'}
+      subscribe();
+    });
+    function subscribe(){
+      unsubs.push(onSnapshot(profilesCol,s=>{profiles=s.docs.map(d=>({id:d.id,...d.data()}));render()}));
+      unsubs.push(onSnapshot(postsCol,s=>{posts=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));render()}));
+      unsubs.push(onSnapshot(moderationCol,s=>{disabled=new Map(s.docs.map(d=>[d.id,d.data()]));render()}));
+    }
+    function render(){
+      $('profile-count').textContent=profiles.length;$('post-count').textContent=posts.length;$('disabled-count').textContent=[...disabled.values()].filter(x=>x.disabled).length;
+      $('users').innerHTML=profiles.length?'':'<p class="meta">No synced profiles yet. Users appear after they sign in once.</p>';
+      profiles.forEach(u=>{const off=disabled.get(u.id)?.disabled===true,ownPosts=posts.filter(p=>p.authorId===u.id).length,el=document.createElement('article');el.className='user';el.innerHTML=`<div class="row"><img class="avatar" src="${esc(safeImage(u.avatar))}" alt=""><div><b>${esc(u.nickname||'Unnamed')}</b><div class="meta">${esc(u.email||'No email')}</div></div></div><p><span class="badge ${off?'off':''}">${off?'Disabled':'Active'}</span> <span class="badge">${ownPosts} posts</span></p><div class="row"><button class="btn ${off?'green':'red'}" data-act="toggle">${off?'Restore':'Disable'}</button><button class="btn red" data-act="posts">Delete all posts</button><button class="btn light" data-act="data">Delete profile data</button></div>`;
+        el.onclick=e=>{const a=e.target.dataset.act;if(a==='toggle')toggleUser(u,off);if(a==='posts')deleteUserPosts(u);if(a==='data')deleteProfileData(u)};$('users').appendChild(el)});
+      $('posts').innerHTML=posts.length?'':'<p class="meta">No posts.</p>';
+      posts.forEach(p=>{const el=document.createElement('article');el.className='post';el.innerHTML=`<b>${esc(p.authorName||'Unknown')}</b><div class="meta">${new Date(p.createdAt||0).toLocaleString()}</div>${safeImage(p.imageUrl)?`<img src="${esc(safeImage(p.imageUrl))}" alt="">`:''}<p>${esc(p.content||'')}</p><button class="btn red">Delete post</button>`;el.querySelector('button').onclick=()=>removePost(p);$('posts').appendChild(el)});
+    }
+    async function toggleUser(u,isOff){await setDoc(doc(moderationCol,u.id),{disabled:!isOff,updatedAt:Date.now(),by:auth.currentUser.email},{merge:true});toast(isOff?'Account restored.':'Account disabled.')}
+    async function removePost(p){if(!confirm('Delete this post?'))return;await deleteDoc(doc(postsCol,p.id));toast('Post deleted.')}
+    async function deleteUserPosts(u){const mine=posts.filter(p=>p.authorId===u.id);if(!confirm(`Delete all ${mine.length} posts by ${u.nickname||u.email}?`))return;const batch=writeBatch(db);mine.forEach(p=>batch.delete(doc(postsCol,p.id)));await batch.commit();toast('All posts for this account were deleted.')}
+    async function deleteProfileData(u){if(!confirm(`Delete saved name/avatar data for ${u.email||u.nickname}? This does not delete the Firebase Auth login.`))return;const batch=writeBatch(db);batch.delete(doc(profilesCol,u.id));batch.delete(doc(db,'artifacts',appId,'users',u.id,'profile','info'));await batch.commit();toast('Profile data deleted. Firebase Auth login remains.')}
+    $('save-manager').onclick=async()=>{const name=$('manager-name').value.trim()||'Manager';await setDoc(doc(db,'artifacts',appId,'admin_config','settings'),{managerName:name,updatedAt:Date.now()},{merge:true});$('manager-label').textContent=name;toast('Manager name saved.')};
+    $('refresh').onclick=()=>location.reload();
+  </script>
+</body>
+</html>
